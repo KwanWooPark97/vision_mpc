@@ -5,10 +5,54 @@ import numpy as np
 
 import gym
 from gym import logger, spaces
-from gym.envs.classic_control. import utils
 from gym.error import DependencyNotInstalled
 
-class CartPoleEnv(gym.Env[np.ndarray, Union[int, np.ndarray]]):
+"""
+Utility functions used for classic control environments.
+"""
+
+from typing import Optional, SupportsFloat, Tuple
+
+
+def verify_number_and_cast(x: SupportsFloat) -> float:
+    """Verify parameter is a single number and cast to a float."""
+    try:
+        x = float(x)
+    except (ValueError, TypeError):
+        raise ValueError(f"An option ({x}) could not be converted to a float.")
+    return x
+
+
+def maybe_parse_reset_bounds(
+    options: Optional[dict], default_low: float, default_high: float
+) -> Tuple[float, float]:
+    """
+    This function can be called during a reset() to customize the sampling
+    ranges for setting the initial state distributions.
+    Args:
+      options: Options passed in to reset().
+      default_low: Default lower limit to use, if none specified in options.
+      default_high: Default upper limit to use, if none specified in options.
+    Returns:
+      Tuple of the lower and upper limits.
+    """
+    if options is None:
+        return default_low, default_high
+
+    low = options.get("low") if "low" in options else default_low
+    high = options.get("high") if "high" in options else default_high
+
+    # We expect only numerical inputs.
+    low = verify_number_and_cast(low)
+    high = verify_number_and_cast(high)
+    if low > high:
+        raise ValueError(
+            f"Lower bound ({low}) must be lower than higher bound ({high})."
+        )
+
+    return low, high
+
+class CartPoleEnv(gym.Env):
     """
     ### Description
     This environment corresponds to the version of the cart-pole problem described by Barto, Sutton, and Anderson in
@@ -103,11 +147,12 @@ class CartPoleEnv(gym.Env[np.ndarray, Union[int, np.ndarray]]):
         self.steps_beyond_terminated = None
 
     def step(self, action):
-        err_msg = f"{action!r} ({type(action)}) invalid"
-        assert self.action_space.contains(action), err_msg
-        assert self.state is not None, "Call reset before using step method."
+        #err_msg = f"{action!r} ({type(action)}) invalid"
+        #assert self.action_space.contains(action), err_msg
+        #assert self.state is not None, "Call reset before using step method."
         x, x_dot, theta, theta_dot = self.state
-        force = self.force_mag if action == 1 else -self.force_mag
+        #force = self.force_mag if action == 1 else -self.force_mag
+        force=action
         costheta = math.cos(theta)
         sintheta = math.sin(theta)
 
@@ -132,14 +177,14 @@ class CartPoleEnv(gym.Env[np.ndarray, Union[int, np.ndarray]]):
 
         self.state = (x, x_dot, theta, theta_dot)
 
-        terminated = bool(
+        '''terminated = bool(
             x < -self.x_threshold
             or x > self.x_threshold
             or theta < -self.theta_threshold_radians
             or theta > self.theta_threshold_radians
-        )
+        )'''
 
-        if not terminated:
+        '''if not terminated:
             reward = 1.0
         elif self.steps_beyond_terminated is None:
             # Pole just fell!
@@ -154,11 +199,11 @@ class CartPoleEnv(gym.Env[np.ndarray, Union[int, np.ndarray]]):
                     "True' -- any further steps are undefined behavior."
                 )
             self.steps_beyond_terminated += 1
-            reward = 0.0
+            reward = 0.0'''
 
         if self.render_mode == "human":
             self.render()
-        return np.array(self.state, dtype=np.float32), reward, terminated, False, {}
+        return np.array(self.state, dtype=np.float32)#, reward, terminated, False, {}
 
     def reset(
             self,
@@ -166,13 +211,13 @@ class CartPoleEnv(gym.Env[np.ndarray, Union[int, np.ndarray]]):
             seed: Optional[int] = None,
             options: Optional[dict] = None,
     ):
-        super().reset(seed=seed)
+        #super().reset(seed=seed)
         # Note that if you use custom reset bounds, it may lead to out-of-bound
         # state/observations.
-        low, high = utils.maybe_parse_reset_bounds(
+        low, high = maybe_parse_reset_bounds(
             options, -0.05, 0.05  # default low
         )  # default high
-        self.state = self.np_random.uniform(low=low, high=high, size=(4,))
+        self.state = np.random.uniform(low=low, high=high, size=(4,))
         self.steps_beyond_terminated = None
 
         if self.render_mode == "human":
