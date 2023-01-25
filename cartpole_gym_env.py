@@ -1,6 +1,6 @@
 import math
 from typing import Optional, Union
-
+from scipy.integrate import odeint
 import numpy as np
 
 import gym
@@ -113,9 +113,9 @@ class CartPoleEnv(gym.Env):
         self.length = 0.5  # actually half the pole's length
         self.polemass_length = self.masspole * self.length
         self.force_mag = 10.0
-        self.tau = 0.02  # seconds between state updates
+        self.tau = 0.012  # seconds between state updates
         self.kinematics_integrator = "euler"
-
+        self.time=0.0
         # Angle at which to fail the episode
         self.theta_threshold_radians = 12 * 2 * math.pi / 360
         self.x_threshold = 2.4
@@ -145,15 +145,58 @@ class CartPoleEnv(gym.Env):
         self.state = None
 
         self.steps_beyond_terminated = None
+    def pendulum(self,state, t, u):
+        # Inputs (1):
+        # Force
+        force = u
+
+        # States (4):
+        # x = state[0]
+        # x_dot=state[1]
+        theta = state[2]
+        theta_dot = state[3]
+
+        costheta = math.cos(math.radians(theta))
+        sintheta = math.sin(math.radians(theta))
+        gravity = 9.8
+        masscart = 1.0
+        masspole = 0.1
+        total_mass = masspole + masscart
+        length = 0.5  # actually half the pole's length
+        polemass_length = masspole * length
+        # For the interested reader:
+        # https://coneural.org/florian/papers/05_cart_pole.pdf
+        temp = (force + polemass_length * theta_dot ** 2 * sintheta) / total_mass
+        thetaacc = (gravity * sintheta - costheta * temp) / (
+                length * (4.0 / 3.0 - masspole * costheta ** 2 / total_mass)
+        )
+        xacc = temp - polemass_length * thetaacc * costheta / total_mass
+
+        # Return xdot:
+        xdot = np.zeros(4)
+        xdot[3] = thetaacc
+        xdot[2] = xdot[3]
+        xdot[1] = xacc
+        xdot[0] = xdot[1]
+
+        return xdot
 
     def step(self, action):
         #err_msg = f"{action!r} ({type(action)}) invalid"
         #assert self.action_space.contains(action), err_msg
         #assert self.state is not None, "Call reset before using step method."
+        force = action
         x, x_dot, theta, theta_dot = self.state
+        ts = [self.time,self.time+0.011]
+        y = odeint(self.pendulum, self.state, ts, args=(force,))
+        # retrieve measurements
+        self.state[0]= y[-1][0]
+        self.state[1]= y[-1][1]
+        self.state[2]= y[-1][2]
+        self.state[3]= y[-1][3]
         #force = self.force_mag if action == 1 else -self.force_mag
-        force=action
-        costheta = math.cos(theta)
+        self.time+=0.011
+        '''costheta = math.cos(theta)
         sintheta = math.sin(theta)
 
         # For the interested reader:
@@ -175,7 +218,7 @@ class CartPoleEnv(gym.Env):
             theta_dot = theta_dot + self.tau * thetaacc
             theta = theta + self.tau * theta_dot
 
-        self.state = (x, x_dot, theta, theta_dot)
+        self.state = (x, x_dot, theta, theta_dot)'''
 
         '''terminated = bool(
             x < -self.x_threshold
@@ -217,7 +260,7 @@ class CartPoleEnv(gym.Env):
         low, high = maybe_parse_reset_bounds(
             options, -0.05, 0.05  # default low
         )  # default high
-        self.state = np.random.uniform(low=low, high=high, size=(4,))
+        self.state = [0,0,0,0]
         self.steps_beyond_terminated = None
 
         if self.render_mode == "human":
