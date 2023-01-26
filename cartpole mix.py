@@ -23,13 +23,13 @@ x0[3]=theta_dot_init
 
 #%% GEKKO nonlinear MPC
 m = GEKKO(remote=False)
-#m.time = [0,0.08,0.16,0.24,0.32,0.40,0.48,0.56,0.64]
+
 #m.time = [0,0.05,0.1,0.15]
 gravity = 9.8
-masscart = 2.0
-masspole = 0.3
+masscart = 1.0
+masspole = 0.1
 total_mass = masspole + masscart
-length = 1.0  # actually half the pole's length
+length = 0.5  # actually half the pole's length
 polemass_length = masspole * length
 force_mag = 10.0
 tau = 0.08  # seconds between state updates
@@ -38,65 +38,32 @@ pi=math.pi
 tau = m.Const(value=0.08)
 Kp = m.Const(value=1)
 
-m.F = m.MV(value=0.0)
-m.x = m.CV(value=cart_position_init,lb=-4.8,ub=4.8)
-m.x_dot=m.CV(value=cart_position_dot_init)
-m.theta=m.CV(value=0.0)
-m.theta_dot=m.CV(value=0)
-m.thetaacc=m.Var(value=0)
-m.temp = m.Var(value=0)
-m.Equation(m.thetaacc==gravity * m.sin(m.theta*math.pi/180) - m.cos(m.theta*math.pi/180) * m.temp) / (length * (4.0 / 3.0 - masspole * m.cos(m.theta*math.pi/180) ** 2 / total_mass))
-m.Equation(m.temp == (m.F + polemass_length * m.theta_dot ** 2 * m.sin(m.theta*math.pi/180)) / total_mass)
-m.Equation(m.x.dt()==m.x_dot)
-m.Equation(m.x_dot.dt() == m.temp - polemass_length * m.thetaacc * m.cos(m.theta*math.pi/180) / total_mass)
-m.Equation(m.theta.dt()==m.theta_dot)
-m.Equation(m.theta_dot.dt()==m.thetaacc)
-#MV tuning
-m.F.STATUS = 1
-m.F.FSTATUS = 0
-m.F.DMAX = 10
-#m.F.DMAXHI = 0   # constrain movement up
-#m.F.DMAXLO = -10 # quick action down
+F=m.Var(value=0)
+theta = m.Var(value=0)
+theta_dot = m.Var(value=0)
+x = m.Var(value=-1.0)
+x_dot = m.Var(value=0)
 
-#m.Obj(m.x**2)
-#m.Obj(m.x_dot**2)
-#m.Obj(m.theta**2)
-#m.Obj(m.theta_dot**2)
+thetaacc=m.Var(value=0)
+temp = m.Var(value=0)
 
-#CV tuning
-m.x.STATUS = 1
-m.x.FSTATUS = 0
-m.x.TR_INIT = 0
-m.x.TAU = 0.08
-m.x.SP=0.0
+m.Equation(thetaacc==gravity * m.sin(theta*math.pi/180) - m.cos(theta*math.pi/180) * temp) / (length * (4.0 / 3.0 - masspole * m.cos(theta*math.pi/180) ** 2 / total_mass))
+m.Equation(temp == (F + polemass_length * theta_dot ** 2 * m.sin(theta*math.pi/180)) / total_mass)
+m.Equation(x.dt()==x_dot)
+m.Equation(x_dot.dt() == temp - polemass_length * thetaacc * m.cos(theta*math.pi/180) / total_mass)
+m.Equation(theta.dt()==theta_dot)
+m.Equation(theta_dot.dt()==thetaacc)
 
-m.x_dot.STATUS = 1
-m.x_dot.FSTATUS = 0
-m.x_dot.TR_INIT = 0
-m.x_dot.TAU = 0.08
-m.x_dot.SP=0.0
+m.Obj(x**2)
+m.Obj(x_dot**2)
+m.Obj(theta**2)
+m.Obj(theta_dot**2)
 
-m.theta.STATUS = 1
-m.theta.FSTATUS = 1
-m.theta.TR_INIT = 1
-m.theta.TAU = 0.08
-m.theta.SP=0.0
+m.Obj(F**2)
 
-m.theta_dot.STATUS = 1
-m.theta_dot.FSTATUS = 0
-m.theta_dot.TR_INIT = 0
-m.theta_dot.TAU = 0.08
-m.theta_dot.SP=0.0
-
-m.options.CV_TYPE = 2
 m.options.IMODE = 6
-#m.options.SOLVER = 3
 
 # Set point steps
-'''m.x.SPHI = 0 + 0.5
-m.x.SPLO = 0 - 0.5
-m.theta.SPHI=0 +DT
-m.theta.SPLO=0 -DT'''
 force=0.0
 # Simulate CSTR
 plot_force=[]
@@ -112,36 +79,37 @@ plot_t=[]
 t=0
 times=0
 while True:
-    m.time = [times, times + 0.08, times + 0.16, times + 0.24, times + 0.32, times + 0.4]
-    start_time = datetime.datetime.now()
+    m.time = [times,times+0.08,times+0.16,times+0.24,times+0.32,times+0.4]
+    #start_time = datetime.datetime.now()
     #env.render()
     t+=1
     # simulate one time period (0.05 sec each loop)
     #ts = [t,next_t]
     #y = odeint(pendulum,x0,ts,args=(force[i],))
-    cart_position, cart_position_dot, theta, theta_dot = env.step(force)
+    print(force)
+    cart_position_dt, cart_position_dot_dt, theta_dt, theta_dot_dt = env.step(force)
 
     # retrieve measurements
     # insert measurement
-    #m.x.MEAS = cart_position
-    #m.x_dot.MEAS=cart_position_dot
-    m.theta.MEAS = theta
-    #m.theta_dot.MEAS=theta_dot
+    x = cart_position_dt
+    x_dot=cart_position_dot_dt
+    theta = theta_dt
+    theta_dot=theta_dot_dt
     # solve MPC
 
-    #print(theta)
+
     m.solve(disp=False)
 
     # retrieve new Tc value
-    force =m.F.NEWVAL
-    plot_x.append(cart_position)
+    force =F.value[0]
+    plot_x.append(cart_position_dt)
     plot_theta.append(theta)
     plot_force.append(force)
     plot_t.append(t)
     times+=0.08
-    end_time = datetime.datetime.now()
+    '''end_time = datetime.datetime.now()
     elapsed_time = end_time - start_time
-    print("5",elapsed_time.microseconds)
+    print("5",elapsed_time.seconds)'''
     # update initial conditions
     #x0[0] = cart_position
     #x0[1] = cart_position_dot

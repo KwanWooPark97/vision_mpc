@@ -21,7 +21,7 @@ m1a = m.Param(value=10) #카트 무게
 m2a = m.Param(value=m2) #진자 무게
 final = np.zeros(len(m.time))
 for i in range(len(m.time)):
-    if m.time[i] < 5:
+    if m.time[i] < 6.2:
         final[i] = 0
     else:
         final[i] = 1
@@ -52,10 +52,10 @@ m.Obj(final*va**2)
 m.Obj(final*theta_a**2)
 m.Obj(final*qa**2)
 
-m.fix(ya,pos=end_loc,val=0.0)
+'''m.fix(ya,pos=end_loc,val=0.0)
 m.fix(va,pos=end_loc,val=0.0)
 m.fix(theta_a,pos=end_loc,val=0.0)
-m.fix(qa,pos=end_loc,val=0.0)
+m.fix(qa,pos=end_loc,val=0.0)'''
 #Try to minimize change of MV over all horizon
 m.Obj(0.001*ua**2)
 

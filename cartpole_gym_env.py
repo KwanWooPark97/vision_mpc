@@ -102,7 +102,7 @@ class CartPoleEnv(gym.Env):
 
     metadata = {
         "render_modes": ["human", "rgb_array"],
-        "render_fps": 50,
+        "render_fps": 60,
     }
 
     def __init__(self, render_mode: Optional[str] = None):
@@ -147,7 +147,7 @@ class CartPoleEnv(gym.Env):
         self.steps_beyond_terminated = None
     def pendulum(self,state, t, u):
         # Inputs (1):
-        # Force
+        # Forc
         force = u
 
         # States (4):
@@ -159,10 +159,10 @@ class CartPoleEnv(gym.Env):
         costheta = math.cos(math.radians(theta))
         sintheta = math.sin(math.radians(theta))
         gravity = 9.8
-        masscart = 1.0
-        masspole = 0.1
+        masscart = 2.0
+        masspole = 0.3
         total_mass = masspole + masscart
-        length = 0.5  # actually half the pole's length
+        length = 1.0  # actually half the pole's length
         polemass_length = masspole * length
         # For the interested reader:
         # https://coneural.org/florian/papers/05_cart_pole.pdf
@@ -187,7 +187,7 @@ class CartPoleEnv(gym.Env):
         #assert self.state is not None, "Call reset before using step method."
         force = action
         x, x_dot, theta, theta_dot = self.state
-        ts = [self.time,self.time+0.011]
+        ts = [self.time,self.time+0.08]
         y = odeint(self.pendulum, self.state, ts, args=(force,))
         # retrieve measurements
         self.state[0]= y[-1][0]
@@ -195,7 +195,7 @@ class CartPoleEnv(gym.Env):
         self.state[2]= y[-1][2]
         self.state[3]= y[-1][3]
         #force = self.force_mag if action == 1 else -self.force_mag
-        self.time+=0.011
+        self.time+=0.08
         '''costheta = math.cos(theta)
         sintheta = math.sin(theta)
 
