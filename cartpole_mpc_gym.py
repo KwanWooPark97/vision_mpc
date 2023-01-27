@@ -116,6 +116,8 @@ while True:
     start_time = datetime.datetime.now()
     #env.render()
     t+=1
+    if t==30:
+        force += force*20
     # simulate one time period (0.05 sec each loop)
     #ts = [t,next_t]
     #y = odeint(pendulum,x0,ts,args=(force[i],))
