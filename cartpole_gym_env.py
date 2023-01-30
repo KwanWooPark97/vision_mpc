@@ -159,10 +159,10 @@ class CartPoleEnv(gym.Env):
         costheta = math.cos(math.radians(theta))
         sintheta = math.sin(math.radians(theta))
         gravity = 9.8
-        masscart = 2.0
-        masspole = 0.3
+        masscart = 1.0
+        masspole = 0.1
         total_mass = masspole + masscart
-        length = 1.0  # actually half the pole's length
+        length = 0.5  # actually half the pole's length
         polemass_length = masspole * length
         # For the interested reader:
         # https://coneural.org/florian/papers/05_cart_pole.pdf

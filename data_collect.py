@@ -1,7 +1,24 @@
 import math
 import numpy as np
 from scipy.integrate import odeint
+from cpprb import ReplayBuffer #강화학습의 PER,HER,ReplayBuffer등을 구현해둔 라이브러리입니다.
+from collections import deque #list 타입의 변수의 최대 길이를 정해주는 라이브러리입니다.
 
+def get_default_rb_dict(size): #replaybuffer에 들어갈 요소들과 크기를 정해줍니다.
+    return {
+        "size": size,
+        "default_dtype": np.float32,
+        "env_dict": {
+            "obs": {                  #observation
+                "shape": (10,5)},
+            "act": {
+                "shape": (4)}}}
+
+def get_replay_buffer():
+
+    kwargs = get_default_rb_dict(size=15000) #replaybuffer를 만들어줍니다. 최대 크기는 size로 정해줍니다.
+
+    return ReplayBuffer(**kwargs)
 def pendulum(self, state, t, u):
     # Inputs (1):
     # Forc
@@ -38,6 +55,7 @@ def pendulum(self, state, t, u):
 
     return xdot
 
+replay_buffer = get_replay_buffer()
 force=0.0
 state=[0.0,0.0,0.0,0.0]
 time=0.0
@@ -45,3 +63,7 @@ while True:
     ts = [time,time+0.08]
     y = odeint(pendulum, state, ts, args=(force,))
     time+=0.08
+    state[0] = y[-1][0]
+    state[1] = y[-1][1]
+    state[2] = y[-1][2]
+    state[3] = y[-1][3]

@@ -5,8 +5,57 @@ from gekko import GEKKO
 import math
 import datetime
 from cartpole_gym_env import CartPoleEnv
+import tensorflow as tf
+from tensorflow.keras.layers import LSTM, Dense
+from tensorflow.keras.optimizers import Adam
 # 팬듈럼 생각해보면 입력은(MV) F 상태 변수는(CV) 4개 cart_position,cart_position_dot,theta,theta_dot
+def pendulum(state,t,u):
+    # Inputs (1):
+    # Force
+    force = u
 
+    # States (4):
+    #x = state[0]
+    #x_dot=state[1]
+    theta=state[2]
+    theta_dot=state[3]
+
+    costheta = math.cos(math.radians(theta))
+    sintheta = math.sin(math.radians(theta))
+    gravity = 9.8
+    masscart = 1.0
+    masspole = 0.1
+    total_mass = masspole + masscart
+    length = 0.5  # actually half the pole's length
+    polemass_length = masspole * length
+    # For the interested reader:
+    # https://coneural.org/florian/papers/05_cart_pole.pdf
+    temp = ( force + polemass_length * theta_dot ** 2 * sintheta) / total_mass
+    thetaacc = (gravity * sintheta - costheta * temp) / (
+            length * (4.0 / 3.0 - masspole * costheta ** 2 / total_mass)
+    )
+    xacc = temp - polemass_length * thetaacc * costheta / total_mass
+
+    # Return xdot:
+    xdot = np.zeros(4)
+    xdot[3]=thetaacc
+    xdot[2]=xdot[3]
+    xdot[1] = xacc
+    xdot[0] = xdot[1]
+    return xdot
+class LSTM_test(tf.keras.Model):#[batch,step,features]
+    def __init__(self):
+        super().__init__()
+        self.s1 = LSTM(512, return_sequences=True)
+        self.s2 = LSTM(256, return_sequences=True)
+        self.s3 = LSTM(52)
+
+    def call(self, states):
+        features1 = self.s1(states)
+        features1 = self.s2(features1)
+        features1 = self.s3(features1)
+
+        return features1
 # 초기 조건들 설정 입력 먼저 초기 조건 설정
 F_init = 0.0
 
@@ -43,14 +92,19 @@ m.x = m.CV(value=cart_position_init,lb=-4.8,ub=4.8)
 m.x_dot=m.CV(value=cart_position_dot_init)
 m.theta=m.CV(value=0.0)
 m.theta_dot=m.CV(value=0)
+m.x_hat = m.CV(value=cart_position_init,lb=-4.8,ub=4.8)
+m.x_dot_hat=m.CV(value=cart_position_dot_init)
+m.theta_hat=m.CV(value=0.0)
+m.theta_dot_hat=m.CV(value=0)
 m.thetaacc=m.Var(value=0)
-m.temp = m.Var(value=0)
+'''m.temp = m.Var(value=0)
 m.Equation(m.thetaacc==gravity * m.sin(m.theta*math.pi/180) - m.cos(m.theta*math.pi/180) * m.temp) / (length * (4.0 / 3.0 - masspole * m.cos(m.theta*math.pi/180) ** 2 / total_mass))
 m.Equation(m.temp == (m.F + polemass_length * m.theta_dot ** 2 * m.sin(m.theta*math.pi/180)) / total_mass)
 m.Equation(m.x.dt()==m.x_dot)
 m.Equation(m.x_dot.dt() == m.temp - polemass_length * m.thetaacc * m.cos(m.theta*math.pi/180) / total_mass)
 m.Equation(m.theta.dt()==m.theta_dot)
-m.Equation(m.theta_dot.dt()==m.thetaacc)
+m.Equation(m.theta_dot.dt()==m.thetaacc)'''
+m.Obj(((m.x-m.x_hat)+(m.x_dot-m.x_dot_hat)+(m.theta-m.theta_hat)+(m.theta_dot-m.theta_dot_hat))**2)
 #MV tuning
 m.F.STATUS = 1
 m.F.FSTATUS = 0
