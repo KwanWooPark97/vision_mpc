@@ -62,11 +62,11 @@ x = m.Var(value=cart_position_init,lb=-4.8,ub=4.8)
 x_dot=m.Var(value=cart_position_dot_init)
 theta=m.Var(value=0.0)
 theta_dot=m.Var(value=0)
-x_hat = m.Var(value=cart_position_init,lb=-4.8,ub=4.8)
-x_dot_hat=m.Var(value=cart_position_dot_init)
+x_hat = m.Var(value=0.0,lb=-4.8,ub=4.8)
+x_dot_hat=m.Var(value=0.0)
 theta_hat=m.Var(value=0.0)
 theta_dot_hat=m.Var(value=0)
-m.Obj(((x-x_hat)+(x_dot-x_dot_hat)+(theta-theta_hat)+(theta_dot-theta_dot_hat))**2)
+m.Obj(((x-x_hat)+(x_dot-x_dot_hat)+(theta-theta_hat)+(theta_dot-theta_dot_hat))**2+F**2)
 
 m.options.IMODE = 6
 #m.options.SOLVER = 3
@@ -75,6 +75,7 @@ env=CartPoleEnv("human")
 _,_=env.reset()
 t=0
 times=0
+model=LSTM_test()
 while True:
     #m.time = [times, times + 0.08, times + 0.16, times + 0.24, times + 0.32, times + 0.4]
     cart_position, cart_position_dot, theta_real, theta_dot_real = env.step(force)
@@ -82,7 +83,9 @@ while True:
     x_dot = cart_position_dot
     theta = theta_real
     theta_dot = theta_dot_real
-    m.theta.MEAS = theta
+
+    x_hat,x_dot_hat,theta_hat,theta_dot_hat=model.predict(data)
+
     m.solve(disp=False)
 
     # retrieve new Tc value
