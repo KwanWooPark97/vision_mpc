@@ -68,7 +68,7 @@ theta_hat=m.Var(value=0.0)
 theta_dot_hat=m.Var(value=0)
 m.Obj(((x-x_hat)+(x_dot-x_dot_hat)+(theta-theta_hat)+(theta_dot-theta_dot_hat))**2+F**2)
 
-m.options.IMODE = 6
+m.options.IMODE = 4
 #m.options.SOLVER = 3
 force=0.0
 env=CartPoleEnv("human")
