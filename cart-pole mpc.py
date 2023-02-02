@@ -34,20 +34,35 @@ pi=math.pi
 
 tau = m.Const(value=0.05)
 Kp = m.Const(value=1)
-
+Kd=10
+#z_dot=x_dot
+mPend=1.0
+L=0.5
+g=9.8
+mCart=1.0
+#xacc=(force - Kd*z_dot - mPend*L*theta_dot**2*math.sin(theta) + mPend*g*math.sin(theta)*math.cos(theta)) / (mCart + mPend*math.sin(theta)**2)
+#thetaacc=((force - Kd*z_dot - mPend*L*theta_dot**2*math.sin(theta))*math.cos(theta)/(mCart + mPend) + g*math.sin(theta)) / (L - mPend*L*math.cos(theta)**2/(mCart + mPend))
 m.F = m.MV(value=0.1)
 m.x = m.CV(value=cart_position_init,lb=-4.8,ub=4.8)
 m.x_dot=m.CV(value=cart_position_dot_init)
-m.theta=m.CV(value=theta_init,lb=-1*12 * 4 * math.pi / 360,ub=12 * 4 * math.pi / 360)
+m.theta=m.CV(value=theta_init)
 m.theta_dot=m.CV(value=theta_dot_init)
 m.thetaacc=m.Var(value=0)
-m.temp = m.Var(value=0)
+#m.temp = m.Var(value=0)
+m.Obj(m.F**2)
+m.Equation(m.thetaacc==((m.F - Kd*m.x_dot - mPend*L*m.theta_dot**2*m.sin(m.theta))*m.cos(m.theta)/(mCart + mPend) + g*m.sin(m.theta)) / (L - mPend*L*m.cos(m.theta)**2/(mCart + mPend)))
+#m.Equation(m.temp == (m.F + polemass_length * m.theta_dot ** 2 * m.sin(m.theta*math.pi/180)) / total_mass)
+m.Equation(m.x.dt()==m.x_dot)
+m.Equation(m.x_dot.dt() ==(m.F - Kd*m.x_dot - mPend*L*m.theta_dot**2*m.sin(m.theta) + mPend*g*m.sin(m.theta)*m.cos(m.theta)) / (mCart + mPend*m.sin(m.theta)**2))
+m.Equation(m.theta.dt()==m.theta_dot)
+m.Equation(m.theta_dot.dt()==m.thetaacc)
+'''
 m.Equation(m.thetaacc==gravity * m.sin(m.theta*math.pi/180) - m.cos(m.theta*math.pi/180) * m.temp) / (length * (4.0 / 3.0 - masspole * m.cos(m.theta*math.pi/180) ** 2 / total_mass))
 m.Equation(m.temp == (m.F + polemass_length * m.theta_dot ** 2 * m.sin(m.theta*math.pi/180)) / total_mass)
 m.Equation(m.x.dt()==m.x_dot)
 m.Equation(m.x_dot.dt() == m.temp - polemass_length * m.thetaacc * m.cos(m.theta*math.pi/180) / total_mass)
 m.Equation(m.theta.dt()==m.theta_dot)
-m.Equation(m.theta_dot.dt()==m.thetaacc)
+m.Equation(m.theta_dot.dt()==m.thetaacc)'''
 #MV tuning
 m.F.STATUS = 1
 m.F.FSTATUS = 0
@@ -60,6 +75,7 @@ m.x.STATUS = 1
 m.x.FSTATUS = 1
 m.x.TR_INIT = 0
 m.x.TAU = 0.05
+m.x.SP=0
 
 m.x_dot.STATUS = 1
 m.x_dot.FSTATUS = 0
@@ -70,6 +86,7 @@ m.theta.STATUS = 1
 m.theta.FSTATUS = 1
 m.theta.TR_INIT = 0
 m.theta.TAU = 0.05
+m.theta.SP=0
 
 m.theta_dot.STATUS = 1
 m.theta_dot.FSTATUS = 0
@@ -78,7 +95,7 @@ m.theta_dot.TAU = 0.05
 
 DT = 0.02 # deadband
 
-#m.options.CV_TYPE = 2
+m.options.CV_TYPE = 2
 m.options.IMODE = 6
 #m.options.SOLVER = 3
 

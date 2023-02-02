@@ -113,7 +113,7 @@ class CartPoleEnv(gym.Env):
         self.length = 0.5  # actually half the pole's length
         self.polemass_length = self.masspole * self.length
         self.force_mag = 10.0
-        self.tau = 0.012  # seconds between state updates
+        self.tau = 0.1  # seconds between state updates
         self.kinematics_integrator = "euler"
         self.time=0.0
         # Angle at which to fail the episode
@@ -187,7 +187,7 @@ class CartPoleEnv(gym.Env):
         #assert self.state is not None, "Call reset before using step method."
         force = action
         x, x_dot, theta, theta_dot = self.state
-        ts = [self.time,self.time+0.08]
+        '''ts = [self.time,self.time+0.08]
         y = odeint(self.pendulum, self.state, ts, args=(force,))
         # retrieve measurements
         self.state[0]= y[-1][0]
@@ -195,7 +195,7 @@ class CartPoleEnv(gym.Env):
         self.state[2]= y[-1][2]
         self.state[3]= y[-1][3]
         #force = self.force_mag if action == 1 else -self.force_mag
-        self.time+=0.08
+        self.time+=0.08'''
         '''costheta = math.cos(theta)
         sintheta = math.sin(theta)
 
@@ -205,7 +205,17 @@ class CartPoleEnv(gym.Env):
         thetaacc = (self.gravity * sintheta - costheta * temp) / (
                 self.length * (4.0 / 3.0 - self.masspole * costheta ** 2 / self.total_mass)
         )
-        xacc = temp - self.polemass_length * thetaacc * costheta / self.total_mass
+        xacc = temp - self.polemass_length * thetaacc * costheta / self.total_mass'''
+
+        Kd=10
+        z_dot=x_dot
+        mPend=1.0
+        L=0.5
+        g=9.81
+        mCart=1.0
+        xacc=(force - Kd*z_dot - mPend*L*theta_dot**2*math.sin(theta) + mPend*g*math.sin(theta)*math.cos(theta)) / (mCart + mPend*math.sin(theta)**2)
+        thetaacc=((force - Kd*z_dot - mPend*L*theta_dot**2*math.sin(theta))*math.cos(theta)/(mCart + mPend) + g*math.sin(theta)) / (L - mPend*L*math.cos(theta)**2/(mCart + mPend))
+
 
         if self.kinematics_integrator == "euler":
             x = x + self.tau * x_dot
@@ -217,8 +227,11 @@ class CartPoleEnv(gym.Env):
             x = x + self.tau * x_dot
             theta_dot = theta_dot + self.tau * thetaacc
             theta = theta + self.tau * theta_dot
-
-        self.state = (x, x_dot, theta, theta_dot)'''
+        if theta >= 2*math.pi:
+            theta=theta%(2*math.pi)
+        elif theta <= -2*math.pi:
+            theta=theta%(2*math.pi)
+        self.state = (x, x_dot, theta, theta_dot)
 
         '''terminated = bool(
             x < -self.x_threshold
@@ -260,7 +273,7 @@ class CartPoleEnv(gym.Env):
         low, high = maybe_parse_reset_bounds(
             options, -0.05, 0.05  # default low
         )  # default high
-        self.state = [0,0,0,0]
+        self.state = [0,0,-3.14,0]
         self.steps_beyond_terminated = None
 
         if self.render_mode == "human":
