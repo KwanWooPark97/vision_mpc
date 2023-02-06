@@ -10,7 +10,7 @@ import tensorflow as tf
 from tensorflow.keras.layers import LSTM, Dense
 from tensorflow.keras.optimizers import Adam
 from collections import deque
-
+from gekko.ML import Gekko_NN_TF
 gpus = tf.config.experimental.list_physical_devices('GPU')
 if gpus:
     try:
@@ -41,7 +41,20 @@ class LSTM_test(tf.keras.Model):
         return features1
 # 초기 조건들 설정 입력 먼저 초기 조건 설정
 F_init = 0.0
-
+env=CartPoleEnv("huma")
+state,_=env.reset()
+plt.figure(figsize=(8,5))
+plt.ion()
+plt.show()
+plot_t=[]
+force=0.0
+state=np.append(state,force)
+mma=[[-10],[10],[-100],[100],[-6.28],[6.28],[-100,100],[-10],[10],[-100],[100],[-6.28],[6.28],[-100,100]]
+plot_x_hat=[]
+plot_theta_hat=[]
+state_deq = deque([np.zeros_like(state) for _ in range(10)],maxlen=10)
+state_deq.append(state)
+state_init=np.array(state_deq)
 # Steady State Initial Conditions for the States
 cart_position_init=0
 cart_position_dot_init = 0
@@ -64,6 +77,9 @@ L=0.5
 g=9.8
 mCart=1.0
 pi=math.pi
+model=LSTM_test()
+model.load_weights('sample_model3d2')
+
 
 m.F = m.MV(value=0.0,lb=-30,ub=30)
 m.x = m.CV(value=cart_position_init)
@@ -75,13 +91,15 @@ x_dot_hat=m.Var(value=0.0)
 theta_hat=m.Var(value=-3.14)
 theta_dot_hat=m.Var(value=0)
 #thetaacc=m.Var(value=0.0000001)
-
+x = m.Param(value=state_init)
+y = Gekko_NN_TF(model,mma,m,n_output = 1).predict([x])
+m.Obj(y**2+x[5])
 #m.Equation(thetaacc==)
 #m.Equation(m.temp == (m.F + polemass_length * m.theta_dot ** 2 * m.sin(m.theta*math.pi/180)) / total_mass)
-#m.Equation(m.x.dt()==m.x_dot)
-#m.Equation(m.x_dot.dt() ==(m.F - Kd*m.x_dot - mPend*L*m.theta_dot**2*m.sin(m.theta) + mPend*g*m.sin(m.theta)*m.cos(m.theta)) / (mCart + mPend*m.sin(m.theta)**2))
-#m.Equation(m.theta.dt()==m.theta_dot)
-#m.Equation(m.theta_dot.dt()==((m.F - Kd*m.x_dot - mPend*L*m.theta_dot**2*m.sin(m.theta))*m.cos(m.theta)/(mCart + mPend) + g*m.sin(m.theta)) / (L - mPend*L*m.cos(m.theta)**2/(mCart + mPend)))
+'''m.Equation(m.x==x_hat)
+m.Equation(m.x_dot==x_dot_hat)
+m.Equation(m.theta==theta_hat)
+m.Equation(m.theta_dot==theta_dot_hat)
 m.Obj((m.x)**2+(m.x_dot)**2+(m.theta)**2+(m.theta_dot)**2+m.F**2)
 #m.Obj(m.F**2)
 #MV tuning
@@ -99,7 +117,7 @@ m.x.TAU = 0.1
 m.x.SP=0
 
 m.x_dot.STATUS = 1
-m.x_dot.FSTATUS = 0
+m.x_dot.FSTATUS = 1
 m.x_dot.TR_INIT = 0
 m.x_dot.TAU = 0.1
 m.x_dot.SP=0
@@ -111,15 +129,15 @@ m.theta.TAU = 0.1
 m.theta.SP=0
 
 m.theta_dot.STATUS = 1
-m.theta_dot.FSTATUS = 0
+m.theta_dot.FSTATUS = 1
 m.theta_dot.TR_INIT = 0
 m.theta_dot.TAU = 0.1
 m.theta_dot.SP=0
 
 #m.Obj((m.x.SP-m.x)**2+(m.theta.SP-m.theta)**2+m.F**2)
-#m.options.CV_TYPE = 2
+m.options.CV_TYPE = 2
 m.options.IMODE = 6
-m.options.SOLVER = 3
+#m.options.SOLVER = 3'''
 force=0.0
 #env=CartPoleEnv("human")
 #_,_=env.reset()
@@ -128,38 +146,27 @@ plot_force=[]
 plot_x=[]
 plot_theta=[]
 t=[]
-env=CartPoleEnv("huma")
-state,_=env.reset()
-plt.figure(figsize=(8,5))
-plt.ion()
-plt.show()
-plot_t=[]
-state=np.append(state,force)
-model=LSTM_test()
-model.load_weights('sample_model3d2')
-plot_x_hat=[]
-plot_theta_hat=[]
-state_deq = deque([np.zeros_like(state) for _ in range(10)],maxlen=10)
-state_deq.append(state)
+
 t=0
 times=0
 #model=LSTM_test()
 while True:
-    input_data = np.array(state_deq).reshape([1, 10, 5])
-    cart_position_hat, cart_position_dot_hat, theta_real_hat, theta_dot_real_hat = model.predict(input_data)[0]
+    mpc_data=np.array(state_deq)
+    x = np.array(state_deq).reshape([1, 10, 5])
+    cart_position_hat, cart_position_dot_hat, theta_real_hat, theta_dot_real_hat = model.predict(x)[0]
     #m.time = [times, times + 0.1, times + 0.2, times + 0.3, times + 0.4, times + 0.5]
     cart_position, cart_position_dot, theta_real, theta_dot_real = env.step(force)
-    m.x=cart_position_hat
-    m.x_dot=cart_position_dot_hat
-    m.theta=theta_real_hat
-    m.theta_dot=theta_dot_real_hat
+    #x_hat=cart_position_hat
+    #x_dot_hat=cart_position_dot_hat
+    #theta_hat=theta_real_hat
+    #theta_dot_hat=theta_dot_real_hat
 
     #x_hat,x_dot_hat,theta_hat,theta_dot_hat=model.predict(data)
 
     m.solve(disp=False)
 
     # retrieve new Tc value
-    force =m.F
+    force =y.value[0]
     times+=0.1
     plot_x.append(cart_position)
     plot_theta.append(theta_real)
