@@ -56,7 +56,8 @@ while replay_buffer.get_current_episode_len() <= 15000:
     next_state=np.array([cart_position,cart_position_dot,theta_real,theta_dot_real])
     replay_buffer.add(x=state_deq, next_x=next_state)
     # retrieve new Tc value
-    force =random.uniform(-30,30)
+    if t%3==0:
+        force =random.uniform(-30,30)
     times+=0.1
     plot_x.append(cart_position)
     plot_theta.append(theta_real)
@@ -88,4 +89,4 @@ while replay_buffer.get_current_episode_len() <= 15000:
     plt.draw()
     plt.pause(0.01)
 
-replay_buffer.save_transitions("data_buffer")
+replay_buffer.save_transitions("data_buffer_force2")
