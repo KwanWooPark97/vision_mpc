@@ -4,13 +4,24 @@ from tensorflow.keras.layers import LSTM, Dense
 from collections import deque
 from cartpole_gym_env import CartPoleEnv
 import matplotlib.pyplot as plt
-import scipy
+from scipy import optimize
 
+gpus = tf.config.experimental.list_physical_devices('GPU')
+if gpus:
+    try:
+        # Currently, memory growth needs to be the same across GPUs
+        for gpu in gpus:
+            tf.config.experimental.set_memory_growth(gpu, True)
+        logical_gpus = tf.config.experimental.list_logical_devices('GPU')
+        print(len(gpus), "Physical GPUs,", len(logical_gpus), "Logical GPUs")
+    except RuntimeError as e:
+        # Memory growth must be set before GPUs have been initialized
+        print(e)
 
 class LSTM_test(tf.keras.Model):
     def __init__(self):
         super().__init__()
-        self.s1 = LSTM(512, input_shape=(None,10,5),return_sequences=True)
+        self.s1 = LSTM(512, return_sequences=True)
         self.s2 = LSTM(256, return_sequences=True)
         self.s3 = LSTM(128)
         self.s4 = Dense(4)
@@ -23,112 +34,128 @@ class LSTM_test(tf.keras.Model):
 
         return features1
 
-model=LSTM_test()
-model.load_weights('sample_model3d3')
 # Define the plant model
 plant = LSTM_test()
-
+plant.load_weights('sample_model3d3')
 # Define the control horizon and the prediction horizon
-control_horizon = 10
-prediction_horizon = 20
+control_horizon = 5
+prediction_horizon = 3
 
 # Define the state and control bounds
 state_bounds = np.array([[-100, 100], [-100, 100], [-3*np.pi, 3*np.pi], [-100, 100]])
-control_bounds = np.array([[-30, 30]])
-
+control_bounds = (-30,30)
+bnd=((-30.0,30.0),)
 # Define the initial state and setpoint
 initial_state = np.array([[0, 0, -np.pi, 0]])
 setpoint = np.array([[0, 0, 0, 0]])
 
-def mpc_controller(initial_state, setpoint, control_horizon, prediction_horizon, state_bounds, control_bounds):
+def mpc_controller(initial_state, initial_force,setpoint, control_horizon, prediction_horizon, state_bounds, bnd):
     # Define the cost function
     def cost_function(state, control):
         state_error = state - setpoint
         control_error = control
-        cost = np.sum(state_error**2) + np.sum(control_error**2)
+        cost = 0.5*state_error[0][0]**2+0.1*state_error[0][1]**2+2*state_error[0][2]**2+0.1*state_error[0][3]**2 + np.sum(control_error**2)
         return cost
-
+    control=initial_force[-1]
     # Define the MPC loop
+    force = initial_force
     state = initial_state
     for i in range(control_horizon):
         # Define the optimization problem
         def optimization_problem(control):
             cost = 0
-            state = initial_state
+            state_buffer = deque(np.array(state),maxlen=10)
+            force_buffer= deque(np.array(force),maxlen=10)
+
             for j in range(prediction_horizon):
-                next_state = plant(np.concatenate((state, np.expand_dims(control, axis=1)), axis=-1))
-                state = next_state
-                cost += cost_function(state, control)
+                force_buffer.append(control)
+
+                input_data=np.concatenate(((state_buffer, force_buffer)), axis=1).reshape([1,10,5])
+                next_state = plant(input_data)[0]
+                state_buffer.append(next_state)
+                cost += cost_function(next_state, control)
+
+
             return cost
 
         # Solve the optimization problem
-        control = scipy.optimize.minimize(optimization_problem, control, bounds=control_bounds)
-
+        result = optimize.minimize(optimization_problem, control, bounds=((-30,30),))
+        force.append(result.x)
         # Apply the control
-        next_state = plant(np.concatenate((state, np.expand_dims(control, axis=1)), axis=-1))
-        state = next_state
-
-    return control
+        next_state = plant(np.concatenate((state, force), axis=1).reshape([1,10,5]))[0]
+        state.append(next_state)
+    return result.x
 
 # Call the MPC controller
-control = mpc_controller(initial_state, setpoint, control_horizon, prediction_horizon, state_bounds, control_bounds)
+env=CartPoleEnv("huma")
+state,_=env.reset()
+plt.figure(figsize=(8,5))
+plt.ion()
+plt.show()
+plot_t=[]
+force=np.array([0.0])
+#state=np.append(state,force)
+plot_x_hat=[]
+plot_theta_hat=[]
+state_deq = deque([np.zeros_like(state) for _ in range(10)],maxlen=10)
+state_deq.append(state)
+state_deq_mpc = deque([np.zeros_like(state) for _ in range(10)],maxlen=10)
+state_deq_mpc.append(state)
+force_deq=deque([np.zeros_like(force) for _ in range(10)],maxlen=10)
+force_deq_mpc=deque([np.zeros_like(force) for _ in range(10)],maxlen=10)
 
-import numpy as np
-import tensorflow as tf
+plot_force=[]
+plot_x=[]
+plot_theta=[]
+t=0
+# Apply the MPC control
+
+while True:
+    state_deq_mpc=state_deq.copy()
+    force_deq_mpc=force_deq.copy()
+    control = mpc_controller(state_deq_mpc, force_deq_mpc, setpoint, control_horizon, prediction_horizon, state_bounds, bnd)
+    force = control
+    force_deq.append(force)
+    x = np.concatenate((state_deq,force_deq),axis=1).reshape([1, 10, 5])
+    x =np.array(x)
+    cart_position_hat, cart_position_dot_hat, theta_real_hat, theta_dot_real_hat = plant.predict(x)[0]
+
+    cart_position, cart_position_dot, theta_real, theta_dot_real = env.step(force[0])
 
 
-class Plant(tf.keras.Model):
-    def __init__(self):
-        super().__init__()
-        self.lstm1 = tf.keras.layers.LSTM(512, input_shape=(None, 10, 5), return_sequences=True)
-        self.lstm2 = tf.keras.layers.LSTM(256, return_sequences=True)
-        self.lstm3 = tf.keras.layers.LSTM(128)
-        self.dense = tf.keras.layers.Dense(4)
 
-    def call(self, inputs):
-        x = self.lstm1(inputs)
-        x = self.lstm2(x)
-        x = self.lstm3(x)
-        x = self.dense(x)
+    next_state = np.array([cart_position_hat, cart_position_dot_hat, theta_real_hat, theta_dot_real_hat])
 
-        return x
+    plot_x.append(cart_position)
+    plot_theta.append(theta_real)
+    plot_force.append(force)
+    plot_t.append(t)
+
+    #state = np.append(next_state, force)
+    state_deq.append(next_state)
+
+    t += 1
+    plt.clf()
+    plt.subplot(3, 1, 1)
+    plt.plot(plot_t, plot_force, 'b--', lw=3)
+    plt.ylabel('input Force')
+    plt.legend(['force'], loc='best')
+
+    plt.subplot(3, 1, 2)
+    plt.plot(plot_t, plot_x, 'b.-', lw=3, label=r'$position$')
+    # plt.plot(plot_t, np.zeros(plot_t), 'r-', lw=3, label=r'$position_{sp}$')
+    plt.axhline(0.0, 0.1, 0.9, color='r', linestyle='-', label=r'$position_{sp}$')
+    plt.ylabel(r'cart position')
+    plt.legend(loc='best')
+
+    plt.subplot(3, 1, 3)
+    # plt.plot(plot_t, np.zeros(plot_t), 'r-', lw=3, label=r'$theta_{sp}$')
+    plt.axhline(0.0, 0.1, 0.9, color='r', linestyle='-', label=r'$theta_{sp}$')
+    plt.plot(plot_t, plot_theta, 'b.-', lw=3, label=r'$theta_{meas}$')
+    plt.ylabel('theta')
+    plt.xlabel('Time (min)')
+    plt.legend(loc='best')
+    plt.draw()
+    plt.pause(0.01)
 
 
-plant = Plant()
-plant.load_weights('sample_model3d3')
-
-state_buffer = []
-T = 100  # Number of time steps
-N = 10  # Number of prediction steps for MPC
-
-for t in range(T):
-    # Keep track of past 10 time steps of state in a buffer
-    state_buffer.append(state)
-    if len(state_buffer) > 10:
-        state_buffer.pop(0)
-
-    # Concatenate the latest state with the previous 9 time steps
-    input_data = np.concatenate(state_buffer + [np.expand_dims(control, axis=0)], axis=1)
-
-    # Reshape the input data to match the model's expected input shape
-    input_data = np.expand_dims(input_data, axis=0)
-    input_data = np.expand_dims(input_data, axis=0)
-
-    # Use MPC to control the system
-    predicted_states = []
-    for i in range(N):
-        # Get the next state from the model
-        next_state = plant(input_data)
-        predicted_states.append(next_state)
-
-        # Update the input data for the next prediction
-        input_data = np.concatenate(state_buffer + [next_state, np.expand_dims(control, axis=0)], axis=1)
-        input_data = np.expand_dims(input_data, axis=0)
-        input_data = np.expand_dims(input_data, axis=0)
-
-    # Choose the control signal that minimizes the cost function
-    cost = ...  # Define your cost function here
-    best_control = ...  # Choose the best control signal based on the cost function
-
-    # Apply the chosen control signal to the system
-    control = best_control

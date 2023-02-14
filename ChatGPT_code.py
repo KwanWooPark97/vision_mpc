@@ -4,7 +4,8 @@ from tensorflow.keras.layers import LSTM, Dense
 from collections import deque
 from cartpole_gym_env import CartPoleEnv
 import matplotlib.pyplot as plt
-
+from tensorflow.keras import optimizers
+from scipy.optimize import minimize
 class LSTM_test(tf.keras.Model):
     def __init__(self):
         super().__init__()
@@ -37,39 +38,42 @@ model.load_weights('sample_model3d3')
         x_pred = np.array(state_deqq).reshape([1, 10, 5])
     return cost'''
 
-def cost_function(x, u, x_pred):
+def cost_function(x, u,u0, x_pred):
     cost = 0
     T=10
     x_state=deque(x,maxlen=10)
+    u_buffer=u0
     for t in range(T-1):
+        u_buffer.append(u[t])
+        input_data=np.concatenate((x[t], u_buffer), axis=1).reshape([1, 10, 5])
         # Use the deep learning model to predict the next state.
         #input_data=np.array(x_state[t]).reshape([1, 10, 5])
-        x_pred[t+1,:] = model(x_state)[-1]
+        x_pred[t+1,:] = model(input_data)
         # Accumulate the cost based on the deviation from the desired state and control inputs.
         cost += 0.1 * np.linalg.norm(x_pred[t+1,:] - np.array([0, 0, 0, 0]))**2 + 0.01 * np.linalg.norm(u[t,:])**2
-        x_state.append(np.append(x_pred[t+1],u[t]))
         return cost
 
 # Define the MPC function
-def mpc_controller(x0):
-    T=10
-    state = deque(x0, maxlen=10)
-    x = np.zeros((T,10,5))
-    u = np.zeros((T-1, 1))
-    x_pred = np.zeros((T, 4))
-    x[-1]=state
-    # Use a solver to minimize the cost function subject to constraints.
-    solver = tf.optimizers.LBFGS(learning_rate=0.1)
+def mpc_controller(x0,u0):
+
+
+    jk=0
+    #Use a solver to minimize the cost function subject to constraints.
+    res = minimize(fun=cost_function, x0=u, args=(u,), method='L-BFGS-B')
+    x_opt = res.x
     for i in range(T-1):
-        def closure():
-            nonlocal x, u, x_pred
-            cost = cost_function(x, u, x_pred)
-            solver.minimize(cost, var_list=[u])
-            return cost
-        solver.minimize(closure, var_list=[u])
-        # Apply the control inputs and update the state.
-        x[i+1,:] = state.append(np.append(model(x[i])[0],u[i]))
-        x_pred[i+1,:] = x[i+1,:4]
+    def closure():
+        nonlocal x, u, x_pred
+        cost = cost_function(x, u,u0, x_pred)
+        solver.minimize(cost, var_list=[u])
+        return cost
+    solver.minimize(closure, var_list=[u])
+    # Apply the control inputs and update the state.
+    u0.append(u[i])
+    x0.append(x[i])
+    input_data=np.concatenate((x0, u0), axis=1).reshape([1, 10, 5])
+    x[i+1,:] = model(input_data)[0]
+    x_pred[i+1,:] = x[i+1,:]
     # Return the first control input.
     return u[0,:]
 
@@ -87,7 +91,7 @@ plot_x_hat=[]
 plot_theta_hat=[]
 state_deq = deque([np.zeros_like(state) for _ in range(10)],maxlen=10)
 state_deq.append(state)
-force_deq=deque([np.zeros_like(force) for _ in range(10)],maxlen=10)
+force_deq=deque([[np.zeros_like(force)] for _ in range(10)],maxlen=10)
 state_init=np.array(state_deq)
 model=LSTM_test()
 model.load_weights('sample_model3d3')
@@ -98,11 +102,11 @@ t=0
 # Apply the MPC control
 
 while True:
-    x = np.array(state_deq).reshape([1, 10, 4])
+    x = np.concatenate((state_deq,force_deq),axis=1).reshape([1, 10, 5])
     cart_position_hat, cart_position_dot_hat, theta_real_hat, theta_dot_real_hat = model.predict(x)[0]
     cart_position, cart_position_dot, theta_real, theta_dot_real = env.step(force)
 
-    u = mpc_controller(x[0])
+    u = mpc_controller(state_deq,force_deq)
 
     next_state = np.array([cart_position_hat, cart_position_dot_hat, theta_real_hat, theta_dot_real_hat])
     force = u
@@ -111,8 +115,9 @@ while True:
     plot_force.append(force)
     plot_t.append(t)
 
-    state = np.append(next_state, force)
-    state_deq.append(state)
+    #state = np.append(next_state, force)
+    state_deq.append(next_state)
+    force_deq.append(u)
     t += 1
     plt.clf()
     plt.subplot(3, 1, 1)
