@@ -36,10 +36,10 @@ class LSTM_test(tf.keras.Model):
 
 # Define the plant model
 plant = LSTM_test()
-plant.load_weights('sample_model3d3')
+plant.load_weights('sample_model3d2')
 # Define the control horizon and the prediction horizon
 control_horizon = 5
-prediction_horizon = 3
+prediction_horizon = 2
 
 # Define the state and control bounds
 state_bounds = np.array([[-100, 100], [-100, 100], [-3*np.pi, 3*np.pi], [-100, 100]])
@@ -108,6 +108,8 @@ plot_force=[]
 plot_x=[]
 plot_theta=[]
 t=0
+plot_x_hat=[]
+plot_theta_hat=[]
 # Apply the MPC control
 
 while True:
@@ -117,7 +119,6 @@ while True:
     force = control
     force_deq.append(force)
     x = np.concatenate((state_deq,force_deq),axis=1).reshape([1, 10, 5])
-    x =np.array(x)
     cart_position_hat, cart_position_dot_hat, theta_real_hat, theta_dot_real_hat = plant.predict(x)[0]
 
     cart_position, cart_position_dot, theta_real, theta_dot_real = env.step(force[0])
@@ -126,15 +127,19 @@ while True:
 
     next_state = np.array([cart_position_hat, cart_position_dot_hat, theta_real_hat, theta_dot_real_hat])
 
-    plot_x.append(cart_position)
-    plot_theta.append(theta_real)
-    plot_force.append(force)
-    plot_t.append(t)
+
 
     #state = np.append(next_state, force)
     state_deq.append(next_state)
 
+    plot_x.append(cart_position)
+    plot_x_hat.append(cart_position_hat)
+    plot_theta.append(theta_real)
+    plot_theta_hat.append(theta_real_hat)
+    plot_force.append(force)
+    plot_t.append(t)
     t += 1
+
     plt.clf()
     plt.subplot(3, 1, 1)
     plt.plot(plot_t, plot_force, 'b--', lw=3)
@@ -143,13 +148,13 @@ while True:
 
     plt.subplot(3, 1, 2)
     plt.plot(plot_t, plot_x, 'b.-', lw=3, label=r'$position$')
-    # plt.plot(plot_t, np.zeros(plot_t), 'r-', lw=3, label=r'$position_{sp}$')
+    plt.plot(plot_t, plot_x_hat, 'g-', lw=3, label=r'$NN$')
     plt.axhline(0.0, 0.1, 0.9, color='r', linestyle='-', label=r'$position_{sp}$')
     plt.ylabel(r'cart position')
     plt.legend(loc='best')
 
     plt.subplot(3, 1, 3)
-    # plt.plot(plot_t, np.zeros(plot_t), 'r-', lw=3, label=r'$theta_{sp}$')
+    plt.plot(plot_t, plot_theta_hat, 'g-', lw=3, label=r'$NN$')
     plt.axhline(0.0, 0.1, 0.9, color='r', linestyle='-', label=r'$theta_{sp}$')
     plt.plot(plot_t, plot_theta, 'b.-', lw=3, label=r'$theta_{meas}$')
     plt.ylabel('theta')

@@ -55,25 +55,25 @@ def cost_function(x, u,u0, x_pred):
 
 # Define the MPC function
 def mpc_controller(x0,u0):
-
-
+    X
+    T=100
     jk=0
     #Use a solver to minimize the cost function subject to constraints.
     res = minimize(fun=cost_function, x0=u, args=(u,), method='L-BFGS-B')
     x_opt = res.x
     for i in range(T-1):
-    def closure():
-        nonlocal x, u, x_pred
-        cost = cost_function(x, u,u0, x_pred)
-        solver.minimize(cost, var_list=[u])
-        return cost
-    solver.minimize(closure, var_list=[u])
-    # Apply the control inputs and update the state.
-    u0.append(u[i])
-    x0.append(x[i])
-    input_data=np.concatenate((x0, u0), axis=1).reshape([1, 10, 5])
-    x[i+1,:] = model(input_data)[0]
-    x_pred[i+1,:] = x[i+1,:]
+        def closure():
+            nonlocal x, u, x_pred
+            cost = cost_function(x, u,u0, x_pred)
+            solver.minimize(cost, var_list=[u])
+            return cost
+        solver.minimize(closure, var_list=[u])
+        # Apply the control inputs and update the state.
+        u0.append(u[i])
+        x0.append(x[i])
+        input_data=np.concatenate((x0, u0), axis=1).reshape([1, 10, 5])
+        x[i+1,:] = model(input_data)[0]
+        x_pred[i+1,:] = x[i+1,:]
     # Return the first control input.
     return u[0,:]
 
