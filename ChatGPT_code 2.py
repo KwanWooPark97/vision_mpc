@@ -38,8 +38,8 @@ class LSTM_test(tf.keras.Model):
 plant = LSTM_test()
 plant.load_weights('sample_model3d2')
 # Define the control horizon and the prediction horizon
-control_horizon = 5
-prediction_horizon = 2
+control_horizon = 3
+prediction_horizon = 3
 
 # Define the state and control bounds
 state_bounds = np.array([[-100, 100], [-100, 100], [-3*np.pi, 3*np.pi], [-100, 100]])
@@ -52,39 +52,42 @@ setpoint = np.array([[0, 0, 0, 0]])
 def mpc_controller(initial_state, initial_force,setpoint, control_horizon, prediction_horizon, state_bounds, bnd):
     # Define the cost function
     def cost_function(state, control):
-        state_error = state - setpoint
+        state_error = np.array(state)
         control_error = control
-        cost = 0.5*state_error[0][0]**2+0.1*state_error[0][1]**2+2*state_error[0][2]**2+0.1*state_error[0][3]**2 + np.sum(control_error**2)
+        cost = 0.5*state_error[0]**2+0.1*state_error[1]**2+2*state_error[2]**2+0.1*state_error[3]**2 + 0.1*control_error**2
         return cost
     control=initial_force[-1]
     # Define the MPC loop
-    force = initial_force
-    state = initial_state
-    for i in range(control_horizon):
+    force = deque(np.array(initial_force),maxlen=10)
+    state = deque(np.array(initial_state),maxlen=10)
+
         # Define the optimization problem
-        def optimization_problem(control):
-            cost = 0
-            state_buffer = deque(np.array(state),maxlen=10)
-            force_buffer= deque(np.array(force),maxlen=10)
+    def optimization_problem(control):
+        cost = 0
+        state_buffer = deque(np.array(state),maxlen=10)
+        force_buffer= deque(np.array(force),maxlen=10)
+        control=np.reshape(control,(10,1))
+        for j in range(prediction_horizon):
+            force_buffer.append(control[j])
 
-            for j in range(prediction_horizon):
-                force_buffer.append(control)
+            input_data=np.concatenate(((state_buffer, force_buffer)), axis=1).reshape([1,10,5])
+            next_state = plant(input_data)[0]
+            state_buffer.append(next_state)
+            cost += cost_function(next_state, control[j][0])
 
-                input_data=np.concatenate(((state_buffer, force_buffer)), axis=1).reshape([1,10,5])
-                next_state = plant(input_data)[0]
-                state_buffer.append(next_state)
-                cost += cost_function(next_state, control)
+        return cost
+    def constraint_function(u):
+        return 1 - np.linalg.norm(u, ord=np.inf)
 
+    con = {'type': 'ineq', 'fun': constraint_function}
+    # Solve the optimization problem
+    result = optimize.minimize(optimization_problem, force, bounds=((-30,30),(-30,30),(-30,30),(-30,30),(-30,30),(-30,30),(-30,30),(-30,30),(-30,30),(-30,30),))
+    '''force.append(result.x)
+    # Apply the control
+    next_state = plant(np.concatenate((state, force), axis=1).reshape([1,10,5]))[0]
+    state.append(next_state)'''
 
-            return cost
-
-        # Solve the optimization problem
-        result = optimize.minimize(optimization_problem, control, bounds=((-30,30),))
-        force.append(result.x)
-        # Apply the control
-        next_state = plant(np.concatenate((state, force), axis=1).reshape([1,10,5]))[0]
-        state.append(next_state)
-    return result.x
+    return result.x[0]
 
 # Call the MPC controller
 env=CartPoleEnv("huma")
@@ -94,6 +97,7 @@ plt.ion()
 plt.show()
 plot_t=[]
 force=np.array([0.0])
+
 #state=np.append(state,force)
 plot_x_hat=[]
 plot_theta_hat=[]
@@ -108,8 +112,6 @@ plot_force=[]
 plot_x=[]
 plot_theta=[]
 t=0
-plot_x_hat=[]
-plot_theta_hat=[]
 # Apply the MPC control
 
 while True:
@@ -117,6 +119,7 @@ while True:
     force_deq_mpc=force_deq.copy()
     control = mpc_controller(state_deq_mpc, force_deq_mpc, setpoint, control_horizon, prediction_horizon, state_bounds, bnd)
     force = control
+    force= np.reshape(force,(1,))
     force_deq.append(force)
     x = np.concatenate((state_deq,force_deq),axis=1).reshape([1, 10, 5])
     cart_position_hat, cart_position_dot_hat, theta_real_hat, theta_dot_real_hat = plant.predict(x)[0]
@@ -125,7 +128,7 @@ while True:
 
 
 
-    next_state = np.array([cart_position_hat, cart_position_dot_hat, theta_real_hat, theta_dot_real_hat])
+    next_state = np.array([cart_position, cart_position_dot, theta_real, theta_dot_real])
 
 
 

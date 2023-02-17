@@ -55,7 +55,7 @@ t=0
 times=0
 state=np.append(state,force)
 model=LSTM_test()
-model.load_weights('sample_model3d3')
+model.load_weights('sample_model3d4')
 plot_x_hat=[]
 plot_theta_hat=[]
 state_deq = deque([np.zeros_like(state) for _ in range(10)],maxlen=10)

@@ -7,7 +7,7 @@ import numpy as np
 from scipy.integrate import odeint
 from cpprb import ReplayBuffer #강화학습의 PER,HER,ReplayBuffer등을 구현해둔 라이브러리입니다.
 from collections import deque #list 타입의 변수의 최대 길이를 정해주는 라이브러리입니다.
-
+from sklearn.model_selection import train_test_split
 def get_default_rb_dict(size): #replaybuffer에 들어갈 요소들과 크기를 정해줍니다.
     return {
         "size": size,
@@ -55,12 +55,13 @@ if __name__ == '__main__':
             # Memory growth must be set before GPUs have been initialized
             print(e)
     replay_buffer = get_replay_buffer()
-    replay_buffer.load_transitions('data_buffer_force2.npz')  # 학습에 사용할 데이터를 가져옵니다.
+    replay_buffer.load_transitions('data_buffer_force5.npz')  # 학습에 사용할 데이터를 가져옵니다.
     samples= replay_buffer.get_all_transitions(shuffle=True)  # replay_buffer에서 batch_size 만큼 sample을 가져옵니다.
     input_data,output_data= samples["x"], samples["next_x"]
 
     # Shuffle and batch data
     n_batch = 500
+    x_train, x_valid, y_train, y_valid = train_test_split(input_data,output_data, test_size=0.1, shuffle=True, random_state=34)
 
     callback = [tf.keras.callbacks.ModelCheckpoint(filepath='best_model.h5',
                                                    monitor='val_loss',
@@ -72,5 +73,5 @@ if __name__ == '__main__':
 
     # Train model
     n_epochs = 100
-    history = model.fit(input_data,output_data, epochs=300, verbose=2)
-    model.save_weights('sample_model3d3')
+    history = model.fit(x_train,y_train, epochs=300,batch_size=n_batch, verbose=2)
+    model.save_weights('sample_model3d5')
