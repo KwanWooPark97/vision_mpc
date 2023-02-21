@@ -36,7 +36,7 @@ class LSTM_test(tf.keras.Model):
 
 # Define the plant model
 plant = LSTM_test()
-plant.load_weights('sample_model3d2')
+plant.load_weights('sample_model3d6')
 # Define the control horizon and the prediction horizon
 control_horizon = 3
 prediction_horizon = 3
@@ -54,7 +54,7 @@ def mpc_controller(initial_state, initial_force,setpoint, control_horizon, predi
     def cost_function(state, control):
         state_error = np.array(state)
         control_error = control
-        cost = 0.5*state_error[0]**2+0.1*state_error[1]**2+2*state_error[2]**2+0.1*state_error[3]**2 + 0.1*control_error**2
+        cost = 0.1*state_error[0]**2+0.1*state_error[1]**2+state_error[2]**2+state_error[3]**2 + control_error**2
         return cost
     control=initial_force[-1]
     # Define the MPC loop

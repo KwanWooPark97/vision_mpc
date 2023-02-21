@@ -55,7 +55,7 @@ if __name__ == '__main__':
             # Memory growth must be set before GPUs have been initialized
             print(e)
     replay_buffer = get_replay_buffer()
-    replay_buffer.load_transitions('data_buffer_force5.npz')  # 학습에 사용할 데이터를 가져옵니다.
+    replay_buffer.load_transitions('data_buffer_force6.npz')  # 학습에 사용할 데이터를 가져옵니다.
     samples= replay_buffer.get_all_transitions(shuffle=True)  # replay_buffer에서 batch_size 만큼 sample을 가져옵니다.
     input_data,output_data= samples["x"], samples["next_x"]
 
@@ -74,4 +74,4 @@ if __name__ == '__main__':
     # Train model
     n_epochs = 100
     history = model.fit(x_train,y_train, epochs=300,batch_size=n_batch, verbose=2)
-    model.save_weights('sample_model3d5')
+    model.save_weights('sample_model3d6')

@@ -56,13 +56,10 @@ while replay_buffer.get_current_episode_len() <= 15000:
     next_state=np.array([cart_position,cart_position_dot,theta_real,theta_dot_real])
     replay_buffer.add(x=state_deq, next_x=next_state)
     # retrieve new Tc value
-    dir=0
-    if cart_position>=10.0:
-        force =random.uniform(-30,0)
-    elif cart_position<=-10.0:
-        force = random.uniform(0, 30)
-    else:
-        force = random.uniform(-30, 30)
+
+
+
+    force = random.uniform(-10, 10)
     times+=0.1
     plot_x.append(cart_position)
     plot_theta.append(theta_real)
@@ -70,28 +67,40 @@ while replay_buffer.get_current_episode_len() <= 15000:
     plot_t.append(t)
     state=np.append(next_state,force)
     state_deq.append(state)
-    t+=1
-    plt.clf()
-    plt.subplot(3, 1, 1)
-    plt.plot(plot_t, plot_force, 'b--', lw=3)
-    plt.ylabel('input Force')
-    plt.legend(['force'], loc='best')
+    if cart_position>=15.0 or cart_position <=-15:
+        state, _ = env.reset()
+        plot_force = []
+        plot_x = []
+        plot_theta = []
+        plot_t = []
+        force = 0.0
+        state = np.append(state, force)
+        state_deq = deque([np.zeros_like(state) for _ in range(10)], maxlen=10)
+        state_deq.append(state)
+        t=0
+    else:
+        t+=1
+        plt.clf()
+        plt.subplot(3, 1, 1)
+        plt.plot(plot_t, plot_force, 'b--', lw=3)
+        plt.ylabel('input Force')
+        plt.legend(['force'], loc='best')
 
-    plt.subplot(3, 1, 2)
-    plt.plot(plot_t, plot_x, 'b.-', lw=3, label=r'$position$')
-    # plt.plot(plot_t, np.zeros(plot_t), 'r-', lw=3, label=r'$position_{sp}$')
-    plt.axhline(0.0, 0.1, 0.9, color='r', linestyle='-', label=r'$position_{sp}$')
-    plt.ylabel(r'cart position')
-    plt.legend(loc='best')
+        plt.subplot(3, 1, 2)
+        plt.plot(plot_t, plot_x, 'b.-', lw=3, label=r'$position$')
+        # plt.plot(plot_t, np.zeros(plot_t), 'r-', lw=3, label=r'$position_{sp}$')
+        plt.axhline(0.0, 0.1, 0.9, color='r', linestyle='-', label=r'$position_{sp}$')
+        plt.ylabel(r'cart position')
+        plt.legend(loc='best')
 
-    plt.subplot(3, 1, 3)
-    # plt.plot(plot_t, np.zeros(plot_t), 'r-', lw=3, label=r'$theta_{sp}$')
-    plt.axhline(0.0, 0.1, 0.9, color='r', linestyle='-', label=r'$theta_{sp}$')
-    plt.plot(plot_t, plot_theta, 'b.-', lw=3, label=r'$theta_{meas}$')
-    plt.ylabel('theta')
-    plt.xlabel('Time (min)')
-    plt.legend(loc='best')
-    plt.draw()
-    plt.pause(0.01)
+        plt.subplot(3, 1, 3)
+        # plt.plot(plot_t, np.zeros(plot_t), 'r-', lw=3, label=r'$theta_{sp}$')
+        plt.axhline(0.0, 0.1, 0.9, color='r', linestyle='-', label=r'$theta_{sp}$')
+        plt.plot(plot_t, plot_theta, 'b.-', lw=3, label=r'$theta_{meas}$')
+        plt.ylabel('theta')
+        plt.xlabel('Time (min)')
+        plt.legend(loc='best')
+        plt.draw()
+        plt.pause(0.01)
 
-replay_buffer.save_transitions("data_buffer_force5")
+replay_buffer.save_transitions("data_buffer_force6")

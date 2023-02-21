@@ -55,7 +55,7 @@ t=0
 times=0
 state=np.append(state,force)
 model=LSTM_test()
-model.load_weights('sample_model3d4')
+model.load_weights('sample_model3d6')
 plot_x_hat=[]
 plot_theta_hat=[]
 state_deq = deque([np.zeros_like(state) for _ in range(10)],maxlen=10)
@@ -67,7 +67,7 @@ while True:
     cart_position, cart_position_dot, theta_real, theta_dot_real = env.step(force)
     next_state=np.array([cart_position,cart_position_dot,theta_real,theta_dot_real])
     # retrieve new Tc value
-    force =random.uniform(-30,30)
+    force =random.uniform(-15,15)
     times+=0.1
 
     plot_x.append(cart_position)
