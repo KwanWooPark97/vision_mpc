@@ -39,14 +39,14 @@ plant = LSTM_test()
 plant.load_weights('sample_model3d6')
 # Define the control horizon and the prediction horizon
 control_horizon = 3
-prediction_horizon = 3
+prediction_horizon = 70
 
 # Define the state and control bounds
 state_bounds = np.array([[-100, 100], [-100, 100], [-3*np.pi, 3*np.pi], [-100, 100]])
 control_bounds = (-30,30)
 bnd=((-30.0,30.0),)
 # Define the initial state and setpoint
-initial_state = np.array([[0, 0, -np.pi, 0]])
+initial_state = np.array([[0, 0, np.pi, 0]])
 setpoint = np.array([[0, 0, 0, 0]])
 
 def mpc_controller(initial_state, initial_force,setpoint, control_horizon, prediction_horizon, state_bounds, bnd):
@@ -58,30 +58,38 @@ def mpc_controller(initial_state, initial_force,setpoint, control_horizon, predi
         return cost
     control=initial_force[-1]
     # Define the MPC loop
-    force = deque(np.array(initial_force),maxlen=10)
+    force = np.array(initial_force)
     state = deque(np.array(initial_state),maxlen=10)
-
+    asd=[initial_force[-11+i] for i in range(1,11)]
         # Define the optimization problem
     def optimization_problem(control):
         cost = 0
+        x_pred = np.zeros((prediction_horizon + 1,4))
         state_buffer = deque(np.array(state),maxlen=10)
-        force_buffer= deque(np.array(force),maxlen=10)
-        control=np.reshape(control,(10,1))
+        force_buffer= deque(np.array(asd),maxlen=10)
+        x_pred[0] = state_buffer[-1]
+        #control=np.reshape(control,(10,1))
         for j in range(prediction_horizon):
-            force_buffer.append(control[j])
+            force_buffer.append(np.array(control[j]).reshape(1,))
 
             input_data=np.concatenate(((state_buffer, force_buffer)), axis=1).reshape([1,10,5])
             next_state = plant(input_data)[0]
+
+            x_pred[j+1,:]=next_state
+            next_state=np.array(next_state).reshape(4)
             state_buffer.append(next_state)
-            cost += cost_function(next_state, control[j][0])
+
+        for i in range(prediction_horizon):
+            cost += cost_function(x_pred[i+1,:], control[i])
 
         return cost
     def constraint_function(u):
         return 1 - np.linalg.norm(u, ord=np.inf)
 
+    bound = tuple((-10, 10) for _ in range(prediction_horizon))
     con = {'type': 'ineq', 'fun': constraint_function}
     # Solve the optimization problem
-    result = optimize.minimize(optimization_problem, force, bounds=((-30,30),(-30,30),(-30,30),(-30,30),(-30,30),(-30,30),(-30,30),(-30,30),(-30,30),(-30,30),))
+    result = optimize.minimize(optimization_problem, force, bounds=bound)
     '''force.append(result.x)
     # Apply the control
     next_state = plant(np.concatenate((state, force), axis=1).reshape([1,10,5]))[0]
@@ -106,7 +114,7 @@ state_deq.append(state)
 state_deq_mpc = deque([np.zeros_like(state) for _ in range(10)],maxlen=10)
 state_deq_mpc.append(state)
 force_deq=deque([np.zeros_like(force) for _ in range(10)],maxlen=10)
-force_deq_mpc=deque([np.zeros_like(force) for _ in range(10)],maxlen=10)
+force_deq_mpc=deque([np.zeros_like(force) for _ in range(prediction_horizon)],maxlen=prediction_horizon)
 
 plot_force=[]
 plot_x=[]
@@ -116,10 +124,12 @@ t=0
 
 while True:
     state_deq_mpc=state_deq.copy()
-    force_deq_mpc=force_deq.copy()
+    #force_deq_mpc=force_deq.copy()
     control = mpc_controller(state_deq_mpc, force_deq_mpc, setpoint, control_horizon, prediction_horizon, state_bounds, bnd)
     force = control
+
     force= np.reshape(force,(1,))
+    force_deq_mpc.append(force)
     force_deq.append(force)
     x = np.concatenate((state_deq,force_deq),axis=1).reshape([1, 10, 5])
     cart_position_hat, cart_position_dot_hat, theta_real_hat, theta_dot_real_hat = plant.predict(x)[0]
