@@ -92,11 +92,11 @@ force_deq=deque([np.zeros_like(u) for _ in range(T)],maxlen=T)
 #force_deq_mpc=deque([np.zeros_like(force) for _ in range(prediction_horizon)],maxlen=prediction_horizon)
 con = {'type': 'ineq', 'fun': constraint_function}
 # flatten x and u into a 1D array for optimization
-
+u_control=np.zeros((m, T))
 for i in range(T):
     print(i)
-    res = minimize(cost_function, u_plot, args=(state_deq,), constraints=con)
-    u_plot = u_plot.reshape((m, T))
+    res = minimize(cost_function, u_control, args=(state_deq,), constraints=con)
+    #u_plot = u_plot.reshape((m, T))
     result = res.x.reshape((m, T))
     state=np.append(x_0,result[:,0])
     state_deq.append(state)
@@ -105,7 +105,7 @@ for i in range(T):
     x_0= model(input_data)[0]
     #x_0 = A.dot(x_0) + B.dot(result[:, 0])
     x_plot[:, i] = x_0
-
+    u_control=np.append(result[:,1:],result[:,-1])
 #%config InlineBackend.figure_format = 'svg'
 
 f = plt.figure()
