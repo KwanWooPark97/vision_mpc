@@ -8,7 +8,10 @@ from sklearn.model_selection import train_test_split
 import numpy as np
 u_control=np.zeros((2, 30))
 result=np.arange(0,60).reshape(2,30)
-print(result)
-#u_control=np.append(result[:,1:],result[:,-1])
+print(result[:,1:])
+print(result[:,-1].reshape(2,1))
+print(np.concatenate((result[:,1:],result[:,-1].reshape(2,1)),axis=1))
+#print(np.append(result[:,1:],result[:,-1],axis=1))
+#u_control=np.append(result[:,1:],result[:,-1:]).reshape(2,30)
 
-print(u_control)
+#print(u_control)

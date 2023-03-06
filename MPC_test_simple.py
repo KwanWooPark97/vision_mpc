@@ -105,7 +105,7 @@ for i in range(T):
     x_0= model(input_data)[0]
     #x_0 = A.dot(x_0) + B.dot(result[:, 0])
     x_plot[:, i] = x_0
-    u_control=np.append(result[:,1:],result[:,-1])
+    u_control=np.concatenate((result[:,1:],result[:,-1].reshape(2,1)),axis=1)
 #%config InlineBackend.figure_format = 'svg'
 
 f = plt.figure()

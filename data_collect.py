@@ -16,7 +16,7 @@ def get_default_rb_dict(size): #replaybuffer에 들어갈 요소들과 크기를
 
 def get_replay_buffer():
 
-    kwargs = get_default_rb_dict(size=15000) #replaybuffer를 만들어줍니다. 최대 크기는 size로 정해줍니다.
+    kwargs = get_default_rb_dict(size=150000) #replaybuffer를 만들어줍니다. 최대 크기는 size로 정해줍니다.
 
     return ReplayBuffer(**kwargs)
 
@@ -50,7 +50,7 @@ state=np.append(state,force)
 replay_buffer = get_replay_buffer()
 state_deq = deque([np.zeros_like(state) for _ in range(10)],maxlen=10)
 state_deq.append(state)
-while replay_buffer.get_current_episode_len() <= 15000:
+while replay_buffer.get_current_episode_len() <= 150000:
     #m.time = [times, times + 0.1, times + 0.2, times + 0.3, times + 0.4, times + 0.5]
     cart_position, cart_position_dot, theta_real, theta_dot_real = env.step(force)
     next_state=np.array([cart_position,cart_position_dot,theta_real,theta_dot_real])
@@ -67,7 +67,7 @@ while replay_buffer.get_current_episode_len() <= 15000:
     plot_t.append(t)
     state=np.append(next_state,force)
     state_deq.append(state)
-    if cart_position>=15.0 or cart_position <=-15:
+    if cart_position>=30.0 or cart_position <=-30:
         state, _ = env.reset()
         plot_force = []
         plot_x = []
@@ -103,4 +103,4 @@ while replay_buffer.get_current_episode_len() <= 15000:
         plt.draw()
         plt.pause(0.01)
 
-replay_buffer.save_transitions("data_buffer_force6")
+replay_buffer.save_transitions("data_buffer_force_big")
