@@ -49,7 +49,7 @@ A = np.eye(n) - alpha * np.random.rand(n, n)
 B = np.random.randn(n, m)
 x_0 = beta * np.random.randn(n)
 model=LSTM_test()
-model.load_weights('sample_model3d_simple')
+model.load_weights('sample_model3d_simple_big')
 x = np.zeros(n)
 u = np.zeros(m)
 x_plot = np.zeros((n, T))
@@ -61,6 +61,7 @@ def cost_function(u, x):
     x_pred = np.zeros((n, T + 1))
     x_pred[:, 0] = x[-1][:8]
     u = u.reshape((m, T))
+
     for i in range(T):
         if i==0:
             input_data=np.array(state_buffer).reshape(1,10,10)

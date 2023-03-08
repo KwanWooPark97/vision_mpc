@@ -16,7 +16,7 @@ def get_default_rb_dict(size): #replaybuffer에 들어갈 요소들과 크기를
 
 def get_replay_buffer():
 
-    kwargs = get_default_rb_dict(size=20000) #replaybuffer를 만들어줍니다. 최대 크기는 size로 정해줍니다.
+    kwargs = get_default_rb_dict(size=100000) #replaybuffer를 만들어줍니다. 최대 크기는 size로 정해줍니다.
 
     return ReplayBuffer(**kwargs)
 
@@ -47,7 +47,7 @@ state=np.append(x_0,u)
 state_deq = deque([np.zeros_like(state) for _ in range(10)],maxlen=10)
 t=0
 
-while replay_buffer.get_current_episode_len() <= 20000:
+while replay_buffer.get_current_episode_len() <= 100000:
     u = np.array([random.uniform(-1, 1),random.uniform(-1,1)])
     next_state=A.dot(x_0)+B.dot(u)
     state = np.append(x_0, u)
@@ -63,4 +63,4 @@ while replay_buffer.get_current_episode_len() <= 20000:
         x_0=next_state
 
 
-replay_buffer.save_transitions("data_buffer_simple")
+replay_buffer.save_transitions("data_buffer_simple_big")

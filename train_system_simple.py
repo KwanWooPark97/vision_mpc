@@ -20,7 +20,7 @@ def get_default_rb_dict(size): #replaybuffer에 들어갈 요소들과 크기를
 
 def get_replay_buffer():
 
-    kwargs = get_default_rb_dict(size=20000) #replaybuffer를 만들어줍니다. 최대 크기는 size로 정해줍니다.
+    kwargs = get_default_rb_dict(size=100000) #replaybuffer를 만들어줍니다. 최대 크기는 size로 정해줍니다.
 
     return ReplayBuffer(**kwargs)
 
@@ -55,12 +55,12 @@ if __name__ == '__main__':
             # Memory growth must be set before GPUs have been initialized
             print(e)
     replay_buffer = get_replay_buffer()
-    replay_buffer.load_transitions('data_buffer_simple.npz')  # 학습에 사용할 데이터를 가져옵니다.
+    replay_buffer.load_transitions('data_buffer_simple_big.npz')  # 학습에 사용할 데이터를 가져옵니다.
     samples= replay_buffer.get_all_transitions(shuffle=True)  # replay_buffer에서 batch_size 만큼 sample을 가져옵니다.
     input_data,output_data= samples["x"], samples["next_x"]
 
     # Shuffle and batch data
-    n_batch = 50
+    n_batch = 300
     x_train, x_valid, y_train, y_valid = train_test_split(input_data,output_data, test_size=0.1, shuffle=True, random_state=34)
 
     callback = [tf.keras.callbacks.ModelCheckpoint(filepath='best_model.h5',
@@ -68,10 +68,10 @@ if __name__ == '__main__':
                                                    save_best_only=True)]
 
     model = LSTM_test()
-    opt_adam = Adam(learning_rate=0.01)
+    opt_adam = Adam(learning_rate=0.001)
     model.compile(optimizer='adam', loss=tf.keras.losses.mse)  #
 
     # Train model
     n_epochs = 100
-    history = model.fit(x_train,y_train, epochs=300,batch_size=n_batch, verbose=2)
-    model.save_weights('sample_model3d_simple')
+    history = model.fit(x_train,y_train, epochs=200,batch_size=n_batch, verbose=2)
+    model.save_weights('sample_model3d_simple_big')
